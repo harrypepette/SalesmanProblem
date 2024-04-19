@@ -1,71 +1,141 @@
 from utile import *  # Importe les fonctions utiles, peut-être des fonctions d'utilité pour le problème spécifique que tu traites
-from random import randint  # Importe la fonction randint pour générer des nombres aléatoires
+import random  # Importe la fonction randint pour générer des nombres aléatoires
+import itertools
 
 class AlgorithmeGenetique:
-    def __init__(self, population=[], taillePopulation=0):
-        self.population = population  # Liste des individus dans la population
+    
+    def __init__(self, taillePopulation):
+        
+        self.population =[]  # Liste des individus dans la population
         self.taillePopulation = taillePopulation  # Taille de la population
-        self.fitness = [0 for i in range(taillePopulation)]  # Liste pour stocker les valeurs de fitness de chaque individu
-        self.record = float('inf')  # Initialisation du record avec une valeur infinie (pour minimiser)
-        self.distanceCourante = float('inf')  # Initialisation de la distance courante avec une valeur infinie
-        self.meilleurIndividu = None  # Meilleur individu trouvé
-        self.meilleurIndex = 0  # Index de l'individu le meilleur
-        self.tauxMutation = 0.1  # Taux de mutation initialisé à 0.1 (10%)
+        self.fitness = {}
+        self.tauxDeMutation=0.015
+        self.tauxElitisme= 0.3
+        self.meilleurIndiv= None
+        self.meilleurfitness=0
 
-    def calculerFitness(self, points):
-        # Calcule la fitness de chaque individu dans la population
-        for i in range(self.taillePopulation):
-            individu = []
-            for j in self.population[i]:
-                individu.append(points[j])  # Crée une liste des points pour chaque individu
-            distance = sommeDistances(individu)  # Calcule la somme des distances pour cet individu
-            if distance < self.distanceCourante:
-                self.meilleurIndividu = self.population[i]  # Met à jour le meilleur individu trouvé
-            if distance < self.record:
-                self.record = distance  # Met à jour le record si une distance plus courte est trouvée
-                self.meilleurIndividu = self.population[i]  # Met à jour le meilleur individu trouvé
-                self.meilleurIndex = i  # Met à jour l'index du meilleur individu
-            self.fitness[i] = 1 / (distance + 1)  # Calcule la fitness pour cet individu
-        self.normaliserFitness()  # Normalise les valeurs de fitness
 
-    def normaliserFitness(self):
-        # Normalise les valeurs de fitness pour qu'elles soient dans la plage [0, 1]
-        somme = 0
-        for i in range(self.taillePopulation):
-            somme += self.fitness[i]  # Calcule la somme de toutes les valeurs de fitness
-        for i in range(self.taillePopulation):
-            self.fitness[i] = self.fitness[i] / somme  # Normalise chaque valeur de fitness
 
-    def muter(self, genes):
-        # Mutate les gènes avec une certaine probabilité (définie par le taux de mutation)
-        for i in range(len(self.population[0])):
-            if(randint(0, 100) / 100 < self.tauxMutation):  # Vérifie si la mutation se produit
-                indexA = randint(0, len(genes) - 1)  # Choix aléatoire du premier index
-                indexB = randint(0, len(genes) - 1)  # Choix aléatoire du deuxième index
-                genes[indexA], genes[indexB] = genes[indexB], genes[indexA]  # Échange des gènes
 
-    def croisement(self, genes1, genes2):
-        # Effectue le croisement entre deux ensembles de gènes
-        debut = randint(0, len(genes1) - 1)  # Point de début du croisement
-        fin = randint(debut - 1, len(genes2) - 1)  # Point de fin du croisement
-        try:
-            fin = randint(debut + 1, len(genes2) - 1)  # Vérifie si le point de fin est valide
-        except:
-            pass
-        nouveauxGenes = genes1[debut:fin]  # Sélectionne les gènes entre le début et la fin
-        for i in range(len(genes2)):
-            p = genes2[i]
-            if p not in nouveauxGenes:
-                nouveauxGenes.append(p)  # Ajoute les gènes de genes2 qui ne sont pas déjà présents
-        return nouveauxGenes
+    
+    #algo de selectioN par roulette
+    def SelectionRoulette(self, coordonnee):
 
-    def selectionNaturelle(self):
-        # Effectue la sélection naturelle pour créer une nouvelle population
-        nouvellePopulation = []
-        for i in range(self.taillePopulation):
-            parent1 = selectionnerParent(self.population, self.fitness)  # Sélectionne le premier parent
-            parent2 = selectionnerParent(self.population, self.fitness)  # Sélectionne le deuxième parent
-            genes = self.croisement(parent1, parent2)  # Croise les gènes des parents
-            self.muter(genes)  # Mutation des gènes
-            nouvellePopulation.append(genes)  # Ajoute les gènes à la nouvelle population
-        self.population = nouvellePopulation  # Met à jour la population avec la nouvelle population
+    # Calcule la fitness de chaque individu dans la population
+        self.fitness={}
+        fitnessCumu = {} #fitness cumuative de chaque individu
+        fitnessC=0 #somme fitness cumulative
+        
+        for individu in self.population:
+                
+            distance = sommeDistances(individu,coordonnee)  # Calcule la somme des distances pour cet individu
+            fitness = 1 / (distance + 1)  # Calcule la fitness pour cet individu
+            self.fitness[tuple(individu)]= fitness # Ajoute la fitness au dictionnaire des fitness pour chaque individu
+            """print("fitness de",individu,"est :", fitness)"""
+
+        for individu,fit in self.fitness.items():
+
+            if fit>= self.meilleurfitness:
+                self.meilleurfitness = fit
+                self.meilleurIndiv = individu
+        print("la meilleur solution est; ", self.meilleurIndiv,"sa fitness est : ",self.meilleurfitness)
+    
+
+        #calcule la somme des fitnessCumulative pour chaque individu, derniere valeur est la somme de toutes les fitness de la pop
+        for individu, fit in self.fitness.items():
+            fitnessC+= fit
+            fitnessCumu[tuple(individu)]= fitnessC
+        """print("fitnesscumu = ",fitnessCumu)"""
+
+        #normaliser la fitness
+        fitNormalized = normaliser(fitnessCumu,fitnessC)
+         
+        
+        #generer un nombre aléatoire entre 0 et 1 puis choisir l'indiv pour lequel la sommeCumu depasse Nbgenere
+        #répété jusqu'a avoir le nb d'individu demandé (on choisi la moitier de taillepopulation)
+        parentSelec=[]
+        for i in range(self.taillePopulation//2):
+            Nbgenere= random.uniform(0,1)
+            """print("nb generé" ,i , " :",Nbgenere)"""
+            for individu, fitnorm in fitNormalized.items():
+            
+                if fitnorm > Nbgenere:
+                    parentSelec.append(individu)
+                    break
+        
+        """print("les parents selectionnés sont: ", parentSelec)"""
+
+        # Liste pour stocker les enfants générés
+        children = []
+
+        # Vérifier si le nombre de parents est impair
+        if len(parentSelec) % 2 != 0:
+            # Si le nombre de parents est impair, ajoutez le dernier parent à la descendance sans croisement
+            children.append(list(parentSelec[-1]))
+            # Enlevez le dernier parent de la liste des parents pour éviter de l'inclure dans d'autres croisements
+            parentSelec = parentSelec[:-1]
+
+        # Parcourir chaque combinaison unique de parents et effectuer le croisement
+        for parent1, parent2 in itertools.combinations(parentSelec, 2):
+            child1, child2 = crossover(list(parent1), list(parent2))
+            children.append(list(child1))
+            children.append(list(child2))
+
+        # Afficher les enfants générés
+        """for child in children:
+            print("its a child ", child)"""
+
+        children= self.mutation(children)
+        """for child in children:
+            print("its a MUTCHILD ", child)"""
+        return children
+    
+    def elitist_replacement(self,children):
+
+        sortedpoplist=[]
+        # Triez les individus en fonction de leur fitness
+        sortedpoptuple= sorted(self.fitness.keys(), key=lambda x: self.fitness[x], reverse=True)
+
+        for indiv in sortedpoptuple:
+            sortedpoplist.append(list(indiv))
+
+        # Calcul du nombre d'individus à conserver en fonction du ratio d'élitisme
+        elitism_count = int((len(sortedpoplist)) * self.tauxElitisme)
+    
+        # Sélection des meilleurs individus à conserver dans la nouvelle population
+        new_population =  sortedpoplist[:elitism_count]
+    
+        # Ajout des enfants générés à la nouvelle population
+        new_population.extend(children[:len(self.population) - elitism_count])
+        self.population= new_population
+        """print("nouvelle pop : ", self.population)"""
+    
+    
+
+
+    def mutation(self,children):
+    # Parcourir chaque ville dans l'enfant et appliquer la mutation avec une probabilité donnée par mutation_rate
+        for i in range(len(children)):
+
+         if random.random() < self.tauxDeMutation:
+            # Choisir une autre ville aléatoire et l'échanger avec la ville actuelle pour la mutation
+            j = random.randint(0, len(children) - 1)
+            children[i], children[j] = children[j], children[i]
+    
+        return children
+
+
+    #prend le nombre de ville entrée dans l'interface et une taile de population
+    def initialize_population(self,nbVille): 
+    
+        for i in range(self.taillePopulation):#initialise la population avec des individu aléatoire,un individu un parcours représenté par une liste de ville
+            individual = list(range(nbVille))#creer un individu
+            random.shuffle(individual)#mélange la liste aléatoirement pour avoir des individu différents
+            self.population.append(individual)#ajoute l'individu à la population
+    
+        
+
+
+
+
+   
