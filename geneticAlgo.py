@@ -14,25 +14,68 @@ class AlgorithmeGenetique:
         self.meilleurIndiv= None
         self.meilleurfitness=0
 
-
-
-
+############## Fonction utilisé dans l'algorithme roulette ##############################################
+    #prend le nombre de ville entrée dans l'interface donne une population initiale avec le meme point de depart
+    def initialize_population(self, nbVille):
+        ville_depart = 0  # Choisissez la ville de depart
     
-    #algo de selectioN par roulette
+        for _ in range(self.taillePopulation):
+            individual = list(range(nbVille))  
+            individual.remove(ville_depart)  # Retirer la ville de départ de la liste
+            random.shuffle(individual)  # Mélanger le reste des villes
+            individual.insert(0, ville_depart)  # Ajouter la ville de départ au début de la liste
+            self.population.append(individual) 
+
+    # Parcourir chaque ville dans l'enfant et appliquer la mutation avec une probabilité donnée par mutation_rate
+    def mutation(self,children):
+        for i in range(len(children)):
+
+         if random.random() < self.tauxDeMutation:
+            # Choisir une autre ville aléatoire et l'échanger avec la ville actuelle pour la mutation
+            j = random.randint(0, len(children) - 1)
+            children[i], children[j] = children[j], children[i]
+    
+        return children
+
+
+    #remplacer la nouvelle population avec une stratgie elitiste
+    def elitist_replacement(self,children):
+
+        sortedpoplist=[]
+        # Triez les individus en fonction de leur fitness
+        sortedpoptuple= sorted(self.fitness.keys(), key=lambda x: self.fitness[x], reverse=True)
+
+        for indiv in sortedpoptuple:
+            sortedpoplist.append(list(indiv))
+
+        # Calcul du nombre d'individus à conserver en fonction du ratio d'élitisme
+        elitism_count = int((len(sortedpoplist)) * self.tauxElitisme)
+    
+        # Sélection des meilleurs individus à conserver dans la nouvelle population
+        new_population =  sortedpoplist[:elitism_count]
+    
+        # Ajout des enfants générés à la nouvelle population
+        new_population.extend(children[:len(self.population) - elitism_count])
+        self.population= new_population
+        """print("nouvelle pop : ", self.population)"""
+    
+################### Algorithme roulette ################################################################
+    #Algo de selection par roulette
     def SelectionRoulette(self, coordonnee):
 
-    # Calcule la fitness de chaque individu dans la population
-        self.fitness={}
-        fitnessCumu = {} #fitness cumuative de chaque individu
+        # Calculer la fitness de chaque individu dans la population
+        self.fitness={}# remet le dictionnaire de fitness a vide au debut de chaque appel
+        fitnessCumu = {} #fitness cumulative de chaque individu
         fitnessC=0 #somme fitness cumulative
         
         for individu in self.population:
                 
             distance = sommeDistances(individu,coordonnee)  # Calcule la somme des distances pour cet individu
-            fitness = 1 / (distance + 1)  # Calcule la fitness pour cet individu
-            self.fitness[tuple(individu)]= fitness # Ajoute la fitness au dictionnaire des fitness pour chaque individu
+            fitness = 1 / (distance + 1)  # Calcule la fitness pour cet individu,+1 pour ne jamais diviser par 0
+            self.fitness[tuple(individu)]= fitness 
             """print("fitness de",individu,"est :", fitness)"""
 
+        #met à jour le meilleur individu et la meilleur fitness
         for individu,fit in self.fitness.items():
 
             if fit>= self.meilleurfitness:
@@ -41,7 +84,7 @@ class AlgorithmeGenetique:
         print("la meilleur solution est; ", self.meilleurIndiv,"sa fitness est : ",self.meilleurfitness)
     
 
-        #calcule la somme des fitnessCumulative pour chaque individu, derniere valeur est la somme de toutes les fitness de la pop
+        #calcule la somme des fitnessCumulative de la population
         for individu, fit in self.fitness.items():
             fitnessC+= fit
             fitnessCumu[tuple(individu)]= fitnessC
@@ -52,7 +95,8 @@ class AlgorithmeGenetique:
          
         
         #generer un nombre aléatoire entre 0 et 1 puis choisir l'indiv pour lequel la sommeCumu depasse Nbgenere
-        #répété jusqu'a avoir le nb d'individu demandé (on choisi la moitier de taillepopulation)
+        #répété jusqu'a avoir le nb d'individu demandé (on choisi la moitier de taillepopulation), ce seront les parents selectionné
+        #pour fair le croisemment
         parentSelec=[]
         for i in range(self.taillePopulation//2):
             Nbgenere= random.uniform(0,1)
@@ -86,56 +130,8 @@ class AlgorithmeGenetique:
             print("its a child ", child)"""
 
         children= self.mutation(children)
+        self.mutation(self.population)
         """for child in children:
             print("its a MUTCHILD ", child)"""
         return children
     
-    def elitist_replacement(self,children):
-
-        sortedpoplist=[]
-        # Triez les individus en fonction de leur fitness
-        sortedpoptuple= sorted(self.fitness.keys(), key=lambda x: self.fitness[x], reverse=True)
-
-        for indiv in sortedpoptuple:
-            sortedpoplist.append(list(indiv))
-
-        # Calcul du nombre d'individus à conserver en fonction du ratio d'élitisme
-        elitism_count = int((len(sortedpoplist)) * self.tauxElitisme)
-    
-        # Sélection des meilleurs individus à conserver dans la nouvelle population
-        new_population =  sortedpoplist[:elitism_count]
-    
-        # Ajout des enfants générés à la nouvelle population
-        new_population.extend(children[:len(self.population) - elitism_count])
-        self.population= new_population
-        """print("nouvelle pop : ", self.population)"""
-    
-    
-
-
-    def mutation(self,children):
-    # Parcourir chaque ville dans l'enfant et appliquer la mutation avec une probabilité donnée par mutation_rate
-        for i in range(len(children)):
-
-         if random.random() < self.tauxDeMutation:
-            # Choisir une autre ville aléatoire et l'échanger avec la ville actuelle pour la mutation
-            j = random.randint(0, len(children) - 1)
-            children[i], children[j] = children[j], children[i]
-    
-        return children
-
-
-    #prend le nombre de ville entrée dans l'interface et une taile de population
-    def initialize_population(self,nbVille): 
-    
-        for i in range(self.taillePopulation):#initialise la population avec des individu aléatoire,un individu un parcours représenté par une liste de ville
-            individual = list(range(nbVille))#creer un individu
-            random.shuffle(individual)#mélange la liste aléatoirement pour avoir des individu différents
-            self.population.append(individual)#ajoute l'individu à la population
-    
-        
-
-
-
-
-   
